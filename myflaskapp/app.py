@@ -1,12 +1,14 @@
-from flask import Flask, jsonify, request
+from os import abort
+from flask import Flask, jsonify, request, redirect, url_for, flash
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy_utils import database_exists, create_database
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from datetime import datetime
-
+from werkzeug.security import check_password_hash
 from myflaskapp.models.database import db, Attendance, Course, Enrollment
 from myflaskapp.models import User
+from myflaskapp.models.user_management import create_user
 
 app = Flask(__name__)
 CORS(app, resources={r'/*': {'origins': '*'}})
@@ -32,6 +34,58 @@ login_manager.init_app(app)
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    username = request.form['username']
+    password = request.form['password']
+    user = User.query.filter_by(username=username).first()
+
+    if user and check_password_hash(user.password_hash, password):
+        login_user(user)
+        return redirect(url_for('home'))
+    else:
+        flash('Invalid username or password')
+        return redirect(url_for('login_form'))
+
+
+@app.route('/admin-dashboard')
+@login_required
+def admin_dashboard():
+    if current_user.role != 'admin':
+        abort(403)  # Forbidden access
+    return "Admin Dashboard - Restricted Access"
+
+
+@app.route('/add_user', methods=['POST'])
+def add_user():
+    data = request.get_json()
+    create_user(data['username'], data['email'], data['password'], data['role'])
+    return jsonify({"message": "User created successfully"}), 201
+
+
+@app.route('/teacher-dashboard')
+@login_required
+def teacher_dashboard():
+    if current_user.role not in ['admin', 'teacher']:
+        abort(403)
+    return "Teacher Dashboard - Restricted Access"
+
+
+@app.route('/ta-dashboard')
+@login_required
+def ta_dashboard():
+    if current_user.role not in ['admin', 'teacher', 'ta']:
+        abort(403)
+    return "TA Dashboard - Accessible by All Roles"
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('home'))
 
 
 # Home route
