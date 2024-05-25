@@ -1,55 +1,74 @@
-from flask import Flask, request, render_template
-from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS  # Import CORS if you need cross-origin requests
+import logging
+from datetime import datetime, timedelta
+from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response
+from flask_cors import CORS, cross_origin
+import mysql.connector
 
-# Initialize SQLAlchemy at the global scope
-db = SQLAlchemy()
+app = Flask(__name__)
+CORS(app)
 
 
-def create_app():
-    """Create and configure an instance of the Flask application."""
-    app = Flask(__name__)
+def get_db_connection():
+    connection = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        passwd="201245",
+        database="AMData",
+        port=3306,
+    )
+    return connection
 
-    # Application configuration
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///yourdatabase.db'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SECRET_KEY'] = 'your_secret_key'
 
-    # Initialize extensions
-    db.init_app(app)
-    CORS(app)  # Enable CORS globally for all domains
+def reset_attendance_table():
+    """Function to reset the attendance table."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM attendance")  # Clears the table
+    conn.commit()
+    cursor.close()
+    conn.close()
+    print("Attendance table reset.")
 
-    # Import models here to avoid circular imports
-    from models.course import Course
-    from models.cancelled_class import CancelledClass
+@app.route("/api/ta/check_attendance", methods=["POST"])
+@cross_origin(origin='*', headers=['Content-Type', 'Authorization'])
+def check_attendance():
+    now = datetime.now()
+    date_str = now.strftime('%Y-%m-%d')
+    start_time_str = now.strftime('%H:%M:%S')
+    end_time_str = (now + timedelta(minutes=30)).strftime('%H:%M:%S')
 
-    # Register blueprints
-    from api.attendance import attendance_api
-    app.register_blueprint(attendance_api, url_prefix='/api/attendance')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    sql = "INSERT INTO attendance (date, start_time, end_time) VALUES (%s, %s, %s)"
+    cursor.execute(sql, (date_str, start_time_str, end_time_str))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return jsonify({"message": "Attendance recorded successfully"}), 201
 
-    from api.notification import notification_api
-    app.register_blueprint(notification_api, url_prefix='/api/notification')
+@app.route('/api/courses', methods=['GET'])
+def get_courses():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
 
-    from api.cancellation import cancellation_api
-    app.register_blueprint(cancellation_api, url_prefix='/api/cancellation')
+    cursor.execute('SELECT COUNT(*) FROM AMData.course_data;')
+    total = cursor.fetchone()['COUNT(*)']
 
-    @app.route('/cancel_class_view')
-    def cancel_class_view():
-        """View handler for cancellation page."""
-        teacher_id = request.args.get('teacher_id')
-        if not teacher_id:
-            return "Teacher ID is required to view the cancellation page", 400
+    cursor.execute('SELECT * FROM AMData.course_data LIMIT %s OFFSET %s;', (per_page, (page - 1) * per_page))
+    courses = cursor.fetchall()
 
-        try:
-            courses = Course.query.filter_by(teacher_id=teacher_id).all()
-        except Exception as e:
-            return f"Failed to load courses: {e}", 500
-
-        return render_template('cancel_class.html', courses=courses)
-
-    return app
+    cursor.close()
+    conn.close()
+    return jsonify({
+        "courses": courses,
+        "total": total,
+        "page": page,
+        "per_page": per_page
+    }), 200
 
 
 if __name__ == '__main__':
-    app = create_app()
+    reset_attendance_table()
     app.run(debug=True)
