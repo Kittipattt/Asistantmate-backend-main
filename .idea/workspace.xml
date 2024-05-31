@@ -5,18 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="56002bc6-1184-4585-bbe5-3e9049f0ec87" name="Changes" comment="login">
-      <change afterPath="$PROJECT_DIR$/app/db.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/attendance.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/attendance.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/cancellation.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/cancellation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/course.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/course.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/notification.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/notification.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/profile.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/profile.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/app.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/attendance.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/attendance.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/cancelled_class.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/cancelled_class.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/course.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/course.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/notification.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/notification.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -96,7 +87,10 @@
       <workItem from="1715319527072" duration="15262000" />
       <workItem from="1715796375602" duration="2569000" />
       <workItem from="1716481470995" duration="9745000" />
-      <workItem from="1716635664908" duration="12151000" />
+      <workItem from="1716635664908" duration="12566000" />
+      <workItem from="1716812472096" duration="6127000" />
+      <workItem from="1716959555881" duration="12864000" />
+      <workItem from="1717147623252" duration="6105000" />
     </task>
     <task id="LOCAL-00001" summary="login">
       <option name="closed" value="true" />
@@ -118,6 +112,6 @@
     <option name="LAST_COMMIT_MESSAGE" value="login" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/Assistantmate_backend_main$app.coverage" NAME="app Coverage Results" MODIFIED="1716655466275" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
+    <SUITE FILE_PATH="coverage/Assistantmate_backend_main$app.coverage" NAME="app Coverage Results" MODIFIED="1716655511277" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
   </component>
 </project>
