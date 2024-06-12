@@ -144,12 +144,12 @@ def login_teacher():
         return jsonify({"error": "Database connection failed"}), 500
 
     data = request.get_json()
-    username = data.get('Teacher_name')
+    teacher_name = data.get('Teacher_name')
     password = data.get('password')
 
     cursor = connection.cursor(dictionary=True)
     query = "SELECT * FROM teacher_data WHERE Teacher_name = %s AND password = %s"
-    cursor.execute(query, (username, password))
+    cursor.execute(query, (teacher_name, password))
     user = cursor.fetchone()
 
     if user:
@@ -160,6 +160,7 @@ def login_teacher():
     else:
         # Invalid credentials
         return jsonify({"error": "Invalid Teacher_name or password"}), 401
+
 
 
 @app.route('/api/my_courses', methods=['GET'])
