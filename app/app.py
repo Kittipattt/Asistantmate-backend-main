@@ -15,6 +15,7 @@ JWT_SECRET_KEY = secrets.token_urlsafe(32)
 app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 jwt = JWTManager(app)
 
+
 def get_db_connection():
     connection = mysql.connector.connect(
         host="localhost",
@@ -25,10 +26,15 @@ def get_db_connection():
     )
     return connection
 
+
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS,DELETE,PUT'
     return response
+
 
 @app.route("/api/ta/check_attendance", methods=["POST"])
 @cross_origin()
@@ -51,7 +57,8 @@ def check_attendance():
 
         # Insert notification
         notification_sql = "INSERT INTO notifications (user_id, message, status) VALUES (%s, %s, %s)"
-        cursor.execute(notification_sql, (user_id, "Attendance recorded successfully. Waiting for approval.", "pending"))
+        cursor.execute(notification_sql,
+                       (user_id, "Attendance recorded successfully. Waiting for approval.", "pending"))
         conn.commit()
 
         return jsonify({"message": "Attendance recorded successfully"}), 201
@@ -62,6 +69,7 @@ def check_attendance():
     finally:
         cursor.close()
         conn.close()
+
 
 @app.route('/api/courses', methods=['GET'])
 def get_courses():
@@ -77,6 +85,7 @@ def get_courses():
     cursor.close()
     conn.close()
     return jsonify({"courses": courses})
+
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -102,6 +111,7 @@ def register():
         cursor.close()
         conn.close()
 
+
 @app.route('/login', methods=['POST'])
 @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
 def login():
@@ -125,6 +135,33 @@ def login():
     else:
         return jsonify({"error": "Invalid username or password"}), 401
 
+
+@app.route('/login_teacher', methods=['POST'])
+@cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
+def login_teacher():
+    connection = get_db_connection()
+    if connection is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    data = request.get_json()
+    username = data.get('Teacher_name')
+    password = data.get('password')
+
+    cursor = connection.cursor(dictionary=True)
+    query = "SELECT * FROM teacher_data WHERE Teacher_name = %s AND password = %s"
+    cursor.execute(query, (username, password))
+    user = cursor.fetchone()
+
+    if user:
+        # Successful login
+        session['user'] = user['Teacher_name']
+        access_token = create_access_token(identity={"Teacher_name": user['Teacher_name']})
+        return jsonify({"message": "Login successful", "user": user, "access_token": access_token}), 200
+    else:
+        # Invalid credentials
+        return jsonify({"error": "Invalid Teacher_name or password"}), 401
+
+
 @app.route('/api/my_courses', methods=['GET'])
 @jwt_required()
 def get_my_courses():
@@ -141,6 +178,51 @@ def get_my_courses():
     cursor.close()
     conn.close()
     return jsonify({"courses": courses})
+
+
+@app.route('/api/current_user', methods=['GET'])
+@jwt_required()
+def get_current_user():
+    identity = get_jwt_identity()
+    username = identity.get('username')
+    return jsonify({"username": username})
+
+
+@app.route('/api/checkin', methods=['POST'])
+def check_in():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    data = request.get_json()
+
+    try:
+        cursor.execute('''
+            INSERT INTO attendance (course_id, date, start_time, end_time, status)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (data['course_id'], data['date'], data['startTime'], data['endTime'], 'Present'))
+        conn.commit()
+        return jsonify({'message': 'Attendance checked in successfully.'}), 200
+    except mysql.connector.Error as error:
+        return jsonify({'message': 'Failed to check in attendance.', 'error': str(error)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/api/attendance')
+def get_attendance():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute('SELECT * FROM attendance')
+        attendance = cursor.fetchall()
+        return jsonify({'attendance': attendance}), 200
+    except mysql.connector.Error as error:
+        return jsonify({'message': 'Failed to fetch attendance.', 'error': str(error)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 
 if __name__ == '__main__':
     app.run(debug=True)
