@@ -217,6 +217,12 @@ def get_attendance():
     try:
         cursor.execute('SELECT * FROM attendance')
         attendance = cursor.fetchall()
+
+        # Convert timedelta objects to strings
+        for record in attendance:
+            record['start_time'] = str(record['start_time'])
+            record['end_time'] = str(record['end_time'])
+
         return jsonify({'attendance': attendance}), 200
     except mysql.connector.Error as error:
         return jsonify({'message': 'Failed to fetch attendance.', 'error': str(error)}), 500
