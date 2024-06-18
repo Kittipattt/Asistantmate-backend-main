@@ -5,7 +5,7 @@ from flask_cors import CORS, cross_origin
 import mysql.connector
 from flask_jwt_extended import create_access_token, JWTManager, jwt_required, get_jwt_identity
 import secrets
-
+from datetime import timedelta, datetime
 app = Flask(__name__)
 app.secret_key = secrets.token_urlsafe(16)
 
@@ -20,8 +20,8 @@ def get_db_connection():
     connection = mysql.connector.connect(
         host="localhost",
         user="root",
-        passwd="201245",
-        database="AMData",
+        passwd="Ice15088",
+        database="amdata",
         port=3306,
     )
     return connection
@@ -36,40 +36,40 @@ def after_request(response):
     return response
 
 
-@app.route("/api/ta/check_attendance", methods=["POST"])
-@cross_origin()
-def check_attendance():
-    now = datetime.now()
-    date_str = now.strftime('%Y-%m-%d')
-    start_time_str = now.strftime('%H:%M:%S')
-    end_time_str = (now + timedelta(minutes=90)).strftime('%H:%M:%S')
-    user_id = request.json.get('userId')
-    course_id = request.json.get('courseId')
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Insert attendance
-        sql = "INSERT INTO attendance (date, start_time, end_time, userId, courseId) VALUES (%s, %s, %s, %s, %s)"
-        cursor.execute(sql, (date_str, start_time_str, end_time_str, user_id, course_id))
-        conn.commit()
-
-        # Insert notification
-        notification_sql = "INSERT INTO notifications (user_id, message, status) VALUES (%s, %s, %s)"
-        cursor.execute(notification_sql,
-                       (user_id, "Attendance recorded successfully. Waiting for approval.", "pending"))
-        conn.commit()
-
-        return jsonify({"message": "Attendance recorded successfully"}), 201
-    except Exception as e:
-        logging.error(f"Error checking attendance: {str(e)}")
-        conn.rollback()
-        return jsonify({"message": "Failed to record attendance"}), 500
-    finally:
-        cursor.close()
-        conn.close()
-
+# @app.route("/api/ta/check_attendance", methods=["POST"])
+# @cross_origin()
+# def check_attendance():
+#     now = datetime.now()
+#     date_str = now.strftime('%Y-%m-%d')
+#     start_time_str = now.strftime('%H:%M:%S')
+#     end_time_str = (now + timedelta(minutes=90)).strftime('%H:%M:%S')
+#     user_id = request.json.get('userId')
+#     course_id = request.json.get('courseId')
+#
+#     conn = get_db_connection()
+#     cursor = conn.cursor()
+#
+#     try:
+#         # Insert attendance
+#         sql = "INSERT INTO attendance (date, start_time, end_time, userId, courseId) VALUES (%s, %s, %s, %s, %s)"
+#         cursor.execute(sql, (date_str, start_time_str, end_time_str, user_id, course_id))
+#         conn.commit()
+#
+#         # Insert notification
+#         notification_sql = "INSERT INTO notifications (user_id, message, status) VALUES (%s, %s, %s)"
+#         cursor.execute(notification_sql,
+#                        (user_id, "Attendance recorded successfully. Waiting for approval.", "pending"))
+#         conn.commit()
+#
+#         return jsonify({"message": "Attendance recorded successfully"}), 201
+#     except Exception as e:
+#         logging.error(f"Error checking attendance: {str(e)}")
+#         conn.rollback()
+#         return jsonify({"message": "Failed to record attendance"}), 500
+#     finally:
+#         cursor.close()
+#         conn.close()
+#
 
 @app.route('/api/courses', methods=['GET'])
 def get_courses():
@@ -77,9 +77,9 @@ def get_courses():
     cursor = conn.cursor(dictionary=True)
     cursor.execute('''
            SELECT *
-           FROM course_data
-           INNER JOIN AMData.ta_data ON AMData.course_data.ta_id = AMData.ta_data.ta_id
-           INNER JOIN AMData.teacher_data ON AMData.course_data.Teacher_id = AMData.teacher_data.Teacher_id
+           FROM course_data01
+           INNER JOIN amdata.ta_data ON amdata.course_data01.ta_id = amdata.ta_data.ta_id
+           INNER JOIN amdata.teacher_data ON amdata.course_data01.Teacher_id = amdata.teacher_data.Teacher_id
        ''')
     courses = cursor.fetchall()
     cursor.close()
@@ -136,30 +136,30 @@ def login():
         return jsonify({"error": "Invalid username or password"}), 401
 
 
-@app.route('/login_teacher', methods=['POST'])
-@cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
-def login_teacher():
-    connection = get_db_connection()
-    if connection is None:
-        return jsonify({"error": "Database connection failed"}), 500
-
-    data = request.get_json()
-    teacher_name = data.get('Teacher_name')
-    password = data.get('password')
-
-    cursor = connection.cursor(dictionary=True)
-    query = "SELECT * FROM teacher_data WHERE Teacher_name = %s AND password = %s"
-    cursor.execute(query, (teacher_name, password))
-    user = cursor.fetchone()
-
-    if user:
-        # Successful login
-        session['user'] = user['Teacher_name']
-        access_token = create_access_token(identity={"Teacher_name": user['Teacher_name']})
-        return jsonify({"message": "Login successful", "user": user, "access_token": access_token}), 200
-    else:
-        # Invalid credentials
-        return jsonify({"error": "Invalid Teacher_name or password"}), 401
+# @app.route('/login_teacher', methods=['POST'])
+# @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
+# def login_teacher():
+#     connection = get_db_connection()
+#     if connection is None:
+#         return jsonify({"error": "Database connection failed"}), 500
+#
+#     data = request.get_json()
+#     teacher_name = data.get('Teacher_name')
+#     password = data.get('password')
+#
+#     cursor = connection.cursor(dictionary=True)
+#     query = "SELECT * FROM teacher_data WHERE Teacher_name = %s AND password = %s"
+#     cursor.execute(query, (teacher_name, password))
+#     user = cursor.fetchone()
+#
+#     if user:
+#         # Successful login
+#         session['user'] = user['Teacher_name']
+#         access_token = create_access_token(identity={"Teacher_name": user['Teacher_name']})
+#         return jsonify({"message": "Login successful", "user": user, "access_token": access_token}), 200
+#     else:
+#         # Invalid credentials
+#         return jsonify({"error": "Invalid Teacher_name or password"}), 401
 
 
 
@@ -172,7 +172,7 @@ def get_my_courses():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute('''
-        SELECT * FROM course_data
+        SELECT * FROM course_data01
         WHERE ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
     ''', (username,))
     courses = cursor.fetchall()
@@ -224,6 +224,50 @@ def get_attendance():
         cursor.close()
         conn.close()
 
+@app.route('/api/viewattendance')
+def viewattendance():
+    try:
+        # Connect to the database
+        db = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            passwd="Ice15088",
+            database="amdata",
+            port=3306,
+        )
+        cursor = db.cursor(dictionary=True)
+
+        # Execute the query
+        cursor.execute("SELECT * FROM attendance")
+        attendance_records = cursor.fetchall()
+
+        # Process each record
+        for record in attendance_records:
+            # Handle timedelta fields
+            if isinstance(record['start_time'], timedelta):
+                total_seconds = record['start_time'].total_seconds()
+                hours, remainder = divmod(total_seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                record['start_time'] = f'{int(hours):02}:{int(minutes):02}:{int(seconds):02}'
+
+            if isinstance(record['end_time'], timedelta):
+                total_seconds = record['end_time'].total_seconds()
+                hours, remainder = divmod(total_seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                record['end_time'] = f'{int(hours):02}:{int(minutes):02}:{int(seconds):02}'
+
+            # Convert date field to string format
+            if isinstance(record['date'], datetime):
+                record['date'] = record['date'].strftime('%Y-%m-%d')
+
+        return jsonify({'attendance': attendance_records}), 200
+
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+        return jsonify({'error': str(err)}), 500
+    finally:
+        cursor.close()
+        db.close()
 
 if __name__ == '__main__':
     app.run(debug=True)
