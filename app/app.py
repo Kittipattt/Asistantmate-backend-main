@@ -144,7 +144,9 @@ def get_my_courses():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute('''
-        SELECT * FROM course_data01
+        SELECT course_data01.*, teacher_data.Teacher_name
+        FROM course_data01
+        JOIN teacher_data ON course_data01.Teacher_id = teacher_data.Teacher_id
         WHERE ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
     ''', (username,))
     courses = cursor.fetchall()
