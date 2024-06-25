@@ -95,6 +95,7 @@
       <workItem from="1718268767535" duration="694000" />
       <workItem from="1718269497905" duration="4186000" />
       <workItem from="1718611303616" duration="2659000" />
+      <workItem from="1719283704033" duration="2748000" />
     </task>
     <task id="LOCAL-00001" summary="login">
       <option name="closed" value="true" />
@@ -116,6 +117,7 @@
     <option name="LAST_COMMIT_MESSAGE" value="login" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/Assistantmate_backend_main$app.coverage" NAME="app Coverage Results" MODIFIED="1718189083145" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
+    <SUITE FILE_PATH="coverage/Asistantmate_backend_main$app.coverage" NAME="app Coverage Results" MODIFIED="1718620220985" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
+    <SUITE FILE_PATH="coverage/Assistantmate_backend_main$app.coverage" NAME="app Coverage Results" MODIFIED="1719284154639" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
   </component>
 </project>

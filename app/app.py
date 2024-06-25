@@ -108,6 +108,32 @@ def login():
         connection.close()
 
 
+@app.route('/login_teacher', methods=['POST'])
+@cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
+def login_teacher():
+    connection = get_db_connection()
+    if connection is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    data = request.get_json()
+    teacher_name = data.get('Teacher_name')
+    password = data.get('password')
+
+    cursor = connection.cursor(dictionary=True)
+    query = "SELECT * FROM teacher_data WHERE Teacher_name = %s AND password = %s"
+    cursor.execute(query, (teacher_name, password))
+    user = cursor.fetchone()
+
+    if user:
+        # Successful login
+        session['user'] = user['Teacher_name']
+        access_token = create_access_token(identity={"Teacher_name": user['Teacher_name']})
+        return jsonify({"message": "Login successful", "user": user, "access_token": access_token}), 200
+    else:
+        # Invalid credentials
+        return jsonify({"error": "Invalid Teacher_name or password"}), 401
+
+
 @app.route('/api/my_courses', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -138,18 +164,34 @@ def get_current_user():
 
 @app.route('/api/checkin', methods=['POST'])
 @cross_origin(origin='http://localhost:3000')
+@jwt_required()
 def check_in():
+    user_identity = get_jwt_identity()
+    username = user_identity.get('username')
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     data = request.get_json()
 
     try:
-        cursor.execute('''
-            INSERT INTO attendance (course_id, date, start_time, end_time, status)
-            VALUES (%s, %s, %s, %s, %s)
-        ''', (data['course_id'], data['date'], data['startTime'], data['endTime'], 'Present'))
-        conn.commit()
-        return jsonify({'message': 'Attendance checked in successfully.'}), 200
+        # Fetch the ID associated with the username from ta_data table
+        cursor.execute('SELECT ta_id FROM ta_data WHERE username = %s', (username,))
+        ta_data = cursor.fetchone()
+
+        if ta_data:
+            ta_id = ta_data['ta_id']
+
+            # Insert into attendance table
+            cursor.execute('''
+                INSERT INTO attendance (ta_id, course_id, date, start_time, end_time, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            ''', (ta_id, data['course_id'], data['date'], data['startTime'], data['endTime'], 'Present'))
+            conn.commit()
+
+            return jsonify({'message': 'Attendance checked in successfully.'}), 200
+        else:
+            return jsonify({'message': 'User not found.'}), 404
+
     except mysql.connector.Error as error:
         return jsonify({'message': 'Failed to check in attendance.', 'error': str(error)}), 500
     finally:
