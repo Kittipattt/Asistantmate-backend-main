@@ -22,8 +22,8 @@ def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        passwd="201245",
-        database="AMData",
+        passwd="Ice15088",
+        database="amdata",
         port=3306,
     )
 
@@ -54,30 +54,30 @@ def get_courses():
     return jsonify({"courses": courses})
 
 
-@app.route('/api/register', methods=['POST'])
-@cross_origin(origin='http://localhost:3000')
-def register():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    ta_name = data.get('ta_name')
-    ta_status = data.get('ta_status')
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        sql = "INSERT INTO ta_data (username, password, ta_name, ta_status) VALUES (%s, %s, %s, %s)"
-        cursor.execute(sql, (username, password, ta_name, ta_status))
-        conn.commit()
-        return jsonify({'message': 'Registered successfully'}), 201
-    except Exception as e:
-        logging.error(f"Error registering user: {str(e)}")
-        conn.rollback()
-        return jsonify({"message": "Failed to register user"}), 500
-    finally:
-        cursor.close()
-        conn.close()
+# @app.route('/api/register', methods=['POST'])
+# @cross_origin(origin='http://localhost:3000')
+# def register():
+#     data = request.get_json()
+#     username = data.get('username')
+#     password = data.get('password')
+#     ta_name = data.get('ta_name')
+#     ta_status = data.get('ta_status')
+#
+#     conn = get_db_connection()
+#     cursor = conn.cursor()
+#
+#     try:
+#         sql = "INSERT INTO ta_data (username, password, ta_name, ta_status) VALUES (%s, %s, %s, %s)"
+#         cursor.execute(sql, (username, password, ta_name, ta_status))
+#         conn.commit()
+#         return jsonify({'message': 'Registered successfully'}), 201
+#     except Exception as e:
+#         logging.error(f"Error registering user: {str(e)}")
+#         conn.rollback()
+#         return jsonify({"message": "Failed to register user"}), 500
+#     finally:
+#         cursor.close()
+#         conn.close()
 
 
 @app.route('/login', methods=['POST'])
@@ -226,11 +226,19 @@ def get_attendance():
 
 @app.route('/api/viewattendance', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
+@jwt_required()
 def viewattendance():
     try:
+        identity = get_jwt_identity()
+        username = identity.get('username')
+
         with get_db_connection() as conn:
             with conn.cursor(dictionary=True) as cursor:
-                cursor.execute("SELECT * FROM attendance")
+                cursor.execute('''
+                    SELECT * 
+                    FROM attendance 
+                    WHERE ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
+                ''', (username,))
                 attendance_records = cursor.fetchall()
 
                 for record in attendance_records:
@@ -253,7 +261,6 @@ def viewattendance():
             errorcode.ER_BAD_DB_ERROR: "Database does not exist."
         }.get(err.errno, str(err))
         return jsonify({'error': error_msg}), 500
-
 
 if __name__ == '__main__':
     app.run(debug=True)
