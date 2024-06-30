@@ -163,6 +163,13 @@ def get_current_user():
     username = identity.get('username')
     return jsonify({"username": username})
 
+@app.route('/api/current_teacher', methods=['GET'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def get_current_teacher():
+    identity = get_jwt_identity()
+    Teacher_name = identity.get('Teacher_name')
+    return jsonify({"Teacher_name": Teacher_name})
 
 @app.route('/api/checkin', methods=['POST'])
 @cross_origin(origin='http://localhost:3000')
