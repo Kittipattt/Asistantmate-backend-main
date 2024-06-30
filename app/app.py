@@ -22,8 +22,8 @@ def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        passwd="Ice15088",
-        database="amdata",
+        passwd="201245",
+        database="AMData",
         port=3306,
     )
 
@@ -155,6 +155,60 @@ def get_my_courses():
     return jsonify({"courses": courses})
 
 
+@app.route('/api/teacher_courses', methods=['GET'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def get_teacher_courses():
+    identity = get_jwt_identity()
+    teacher_name = identity.get('Teacher_name')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
+        SELECT course_data01.*, teacher_data.Teacher_name
+        FROM course_data01
+        JOIN teacher_data ON course_data01.Teacher_id = teacher_data.Teacher_id
+        WHERE course_data01.Teacher_id = (SELECT Teacher_id FROM teacher_data WHERE Teacher_name = %s)
+    ''', (teacher_name,))
+    courses = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify({"courses": courses})
+
+
+@app.route('/api/cancel_class', methods=['POST'])
+def cancel_class():
+    data = request.json
+
+    course_id = data.get('course_id')
+    cancelled_date = data.get('cancelled_date')
+    cancellation_reason = data.get('cancellation_reason')
+
+    if not course_id or not cancelled_date:
+        return jsonify({'message': 'Missing required data'}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Insert cancellation data into the `cancel` table
+        insert_query = """
+        INSERT INTO cancel (course_id, cancelled_date, cancellation_reason)
+        VALUES (%s, %s, %s)
+        """
+        cursor.execute(insert_query, (course_id, cancelled_date, cancellation_reason))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({'message': 'Class cancelled successfully'}), 200
+
+    except Exception as e:
+        return jsonify({'message': 'Failed to cancel class', 'error': str(e)}), 500
+
+
+
 @app.route('/api/current_user', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -163,6 +217,7 @@ def get_current_user():
     username = identity.get('username')
     return jsonify({"username": username})
 
+
 @app.route('/api/current_teacher', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -170,6 +225,7 @@ def get_current_teacher():
     identity = get_jwt_identity()
     Teacher_name = identity.get('Teacher_name')
     return jsonify({"Teacher_name": Teacher_name})
+
 
 @app.route('/api/checkin', methods=['POST'])
 @cross_origin(origin='http://localhost:3000')
@@ -268,6 +324,7 @@ def viewattendance():
             errorcode.ER_BAD_DB_ERROR: "Database does not exist."
         }.get(err.errno, str(err))
         return jsonify({'error': error_msg}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
