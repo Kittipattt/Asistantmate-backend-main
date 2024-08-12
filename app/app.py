@@ -144,7 +144,7 @@ def get_my_courses():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute('''
-        SELECT course_data01.*, teacher_data.Teacher_name
+        SELECT course_data01.courseid AS id, course_data01.course_name AS name, teacher_data.Teacher_name
         FROM course_data01
         JOIN teacher_data ON course_data01.Teacher_id = teacher_data.Teacher_id
         WHERE ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
@@ -174,6 +174,8 @@ def get_teacher_courses():
     cursor.close()
     conn.close()
     return jsonify({"courses": courses})
+
+
 
 
 @app.route('/api/cancel_class', methods=['POST'])
@@ -324,6 +326,74 @@ def viewattendance():
             errorcode.ER_BAD_DB_ERROR: "Database does not exist."
         }.get(err.errno, str(err))
         return jsonify({'error': error_msg}), 500
+
+
+@app.route('/api/teacher_courses', methods=['GET'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def get_courses_for_teacher():
+    identity = get_jwt_identity()
+    teacher_name = identity.get('Teacher_name')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
+        SELECT courseid, course_name 
+        FROM course_data01 
+        WHERE Teacher_id = (SELECT Teacher_id FROM teacher_data WHERE Teacher_name = %s)
+    ''', (teacher_name,))
+    courses = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify({"courses": courses})
+
+
+@app.route('/api/ta_for_course', methods=['GET'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def get_tas_for_course():
+    course_id = request.args.get('course_id')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
+        SELECT ta_id, ta_name
+        FROM ta_data
+        WHERE ta_id IN (SELECT ta_id FROM course_data01 WHERE courseid = %s)
+    ''', (course_id,))
+    tas = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify({"tas": tas})
+
+
+@app.route('/api/evaluate', methods=['POST'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def submit_evaluation():
+    data = request.get_json()
+    identity = get_jwt_identity()
+    teacher_name = identity.get('Teacher_name')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            INSERT INTO evaluate (ta_name, ta_id, score, comment, evaluate_date, Teacher_name, course_id)
+            VALUES (
+                (SELECT ta_name FROM ta_data WHERE ta_id = %s),
+                %s, %s, %s, NOW(), %s, %s
+            )
+        ''', (
+            data['ta_id'], data['ta_id'], data['score'], data['comment'], teacher_name, data['course_id']
+        ))
+        conn.commit()
+        return jsonify({"status": "success"}), 201
+    except mysql.connector.Error as error:
+        return jsonify({'message': 'Failed to submit evaluation.', 'error': str(error)}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 
 if __name__ == '__main__':

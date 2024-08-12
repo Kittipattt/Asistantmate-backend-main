@@ -98,6 +98,12 @@
       <workItem from="1719283704033" duration="2748000" />
       <workItem from="1719503456395" duration="3983000" />
       <workItem from="1719757512178" duration="606000" />
+      <workItem from="1719802977429" duration="1910000" />
+      <workItem from="1719927924380" duration="139000" />
+      <workItem from="1719928068822" duration="3000" />
+      <workItem from="1722955078916" duration="8000" />
+      <workItem from="1723015740588" duration="9048000" />
+      <workItem from="1723423189092" duration="836000" />
     </task>
     <task id="LOCAL-00001" summary="login">
       <option name="closed" value="true" />
@@ -121,6 +127,6 @@
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Asistantmate_backend$app.coverage" NAME="app Coverage Results" MODIFIED="1719507552476" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
     <SUITE FILE_PATH="coverage/Asistantmate_backend_main$app.coverage" NAME="app Coverage Results" MODIFIED="1718620220985" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
-    <SUITE FILE_PATH="coverage/Assistantmate_backend_main$app.coverage" NAME="app Coverage Results" MODIFIED="1719757514361" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
+    <SUITE FILE_PATH="coverage/Assistantmate_backend_main$app.coverage" NAME="app Coverage Results" MODIFIED="1723015784030" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
   </component>
 </project>
