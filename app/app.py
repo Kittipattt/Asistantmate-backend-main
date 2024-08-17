@@ -54,32 +54,6 @@ def get_courses():
     return jsonify({"courses": courses})
 
 
-# @app.route('/api/register', methods=['POST'])
-# @cross_origin(origin='http://localhost:3000')
-# def register():
-#     data = request.get_json()
-#     username = data.get('username')
-#     password = data.get('password')
-#     ta_name = data.get('ta_name')
-#     ta_status = data.get('ta_status')
-#
-#     conn = get_db_connection()
-#     cursor = conn.cursor()
-#
-#     try:
-#         sql = "INSERT INTO ta_data (username, password, ta_name, ta_status) VALUES (%s, %s, %s, %s)"
-#         cursor.execute(sql, (username, password, ta_name, ta_status))
-#         conn.commit()
-#         return jsonify({'message': 'Registered successfully'}), 201
-#     except Exception as e:
-#         logging.error(f"Error registering user: {str(e)}")
-#         conn.rollback()
-#         return jsonify({"message": "Failed to register user"}), 500
-#     finally:
-#         cursor.close()
-#         conn.close()
-
-
 @app.route('/login', methods=['POST'])
 @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
 def login():
@@ -176,8 +150,6 @@ def get_teacher_courses():
     return jsonify({"courses": courses})
 
 
-
-
 @app.route('/api/cancel_class', methods=['POST'])
 def cancel_class():
     data = request.json
@@ -208,7 +180,6 @@ def cancel_class():
 
     except Exception as e:
         return jsonify({'message': 'Failed to cancel class', 'error': str(e)}), 500
-
 
 
 @app.route('/api/current_user', methods=['GET'])
@@ -394,6 +365,90 @@ def submit_evaluation():
     finally:
         cursor.close()
         conn.close()
+
+
+@app.route('/api/my_attendance', methods=['GET'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def get_my_attendance():
+    try:
+        identity = get_jwt_identity()
+        username = identity.get('username')
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute('''
+            SELECT date, start_time, end_time, course_id 
+            FROM attendance 
+            WHERE ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
+        ''', (username,))
+        attendance_records = cursor.fetchall()
+
+        # Convert time fields and date to appropriate formats
+        for record in attendance_records:
+            if isinstance(record['start_time'], timedelta):
+                record['start_time'] = str(record['start_time'])
+            if isinstance(record['end_time'], timedelta):
+                record['end_time'] = str(record['end_time'])
+            if isinstance(record['date'], datetime):
+                record['date'] = record['date'].strftime('%Y-%m-%d')
+
+        return jsonify({'attendance': attendance_records}), 200
+
+    except mysql.connector.Error as err:
+        return jsonify({'error': f"Database error: {str(err)}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/api/attendance_summary', methods=['GET'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def get_attendance_summary():
+    try:
+        identity = get_jwt_identity()
+        username = identity.get('username')
+
+        with get_db_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute('''
+                    SELECT attendance.course_id, attendance.date, attendance.start_time, attendance.end_time,
+                           ta_data.ta_name,
+                           TIMESTAMPDIFF(MINUTE, attendance.start_time, attendance.end_time) AS minutes_worked
+                    FROM attendance
+                    JOIN ta_data ON attendance.ta_id = ta_data.ta_id
+                    WHERE attendance.ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
+                ''', (username,))
+                attendance_records = cursor.fetchall()
+
+                for record in attendance_records:
+                    # Convert minutes to hours and minutes format
+                    minutes_worked = record['minutes_worked']
+                    hours = minutes_worked // 60
+                    minutes = minutes_worked % 60
+                    record['hours_worked'] = f'{hours}h {minutes}m'
+
+                    # Convert datetime objects to strings
+                    if isinstance(record['date'], datetime):
+                        record['date'] = record['date'].strftime('%Y-%m-%d')
+                    for time_field in ['start_time', 'end_time']:
+                        if isinstance(record[time_field], timedelta):
+                            total_seconds = record[time_field].total_seconds()
+                            hours, remainder = divmod(total_seconds, 3600)
+                            minutes, seconds = divmod(remainder, 60)
+                            record[time_field] = f'{int(hours):02}:{int(minutes):02}:{int(seconds):02}'
+
+                return jsonify({'attendance': attendance_records}), 200
+
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+        error_msg = {
+            errorcode.ER_ACCESS_DENIED_ERROR: "Something is wrong with your user name or password.",
+            errorcode.ER_BAD_DB_ERROR: "Database does not exist."
+        }.get(err.errno, str(err))
+        return jsonify({'error': error_msg}), 500
 
 
 if __name__ == '__main__':
