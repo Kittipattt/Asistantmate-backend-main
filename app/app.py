@@ -393,15 +393,16 @@ def get_attendance_summary():
 
         with get_db_connection() as conn:
             with conn.cursor(dictionary=True) as cursor:
-                # Join with course_data01 to get the course_type
+                # Ensure no duplicate records by using DISTINCT or a GROUP BY clause
                 cursor.execute('''
-                    SELECT attendance.course_id, attendance.date, attendance.start_time, attendance.end_time,
-                           ta_data.ta_name, course_data01.course_type,
-                           TIMESTAMPDIFF(MINUTE, attendance.start_time, attendance.end_time) AS minutes_worked
-                    FROM attendance
-                    JOIN ta_data ON attendance.ta_id = ta_data.ta_id
-                    JOIN course_data01 ON attendance.course_id = course_data01.courseid
-                    WHERE attendance.ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
+                    SELECT DISTINCT
+                        a.course_id, a.date, a.start_time, a.end_time,
+                        t.ta_name, c.course_type,
+                        TIMESTAMPDIFF(MINUTE, a.start_time, a.end_time) AS minutes_worked
+                    FROM attendance a
+                    JOIN ta_data t ON a.ta_id = t.ta_id
+                    JOIN course_data01 c ON a.course_id = c.courseid
+                    WHERE a.ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
                 ''', (username,))
                 attendance_records = cursor.fetchall()
 
@@ -424,6 +425,8 @@ def get_attendance_summary():
                     # Convert datetime objects to strings
                     if isinstance(record['date'], datetime):
                         record['date'] = record['date'].strftime('%Y-%m-%d')
+
+                    # Format time fields
                     for time_field in ['start_time', 'end_time']:
                         if isinstance(record[time_field], timedelta):
                             total_seconds = record[time_field].total_seconds()
@@ -434,7 +437,7 @@ def get_attendance_summary():
                     # Calculate wage based on course_type
                     course_type = record['course_type']
                     rate_per_hour = wage_rates.get(course_type, 0)
-                    record['wage'] = rate_per_hour * (minutes_worked / 60)
+                    record['wage'] = f'{rate_per_hour * (minutes_worked / 60):.2f}'
 
                 return jsonify({'attendance': attendance_records}), 200
 
@@ -445,9 +448,6 @@ def get_attendance_summary():
             errorcode.ER_BAD_DB_ERROR: "Database does not exist."
         }.get(err.errno, str(err))
         return jsonify({'error': error_msg}), 500
-
-
-
 
 
 if __name__ == '__main__':
