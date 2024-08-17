@@ -218,15 +218,31 @@ def check_in():
 
         if ta_data:
             ta_id = ta_data['ta_id']
+            course_id = data['course_id']
 
-            # Insert into attendance table
-            cursor.execute('''
-                INSERT INTO attendance (ta_id, course_id, date, start_time, end_time, status)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            ''', (ta_id, data['course_id'], data['date'], data['startTime'], data['endTime'], 'Present'))
-            conn.commit()
+            # Process any remaining result set before executing a new query
+            cursor.fetchall()  # Ensure no pending results are left
 
-            return jsonify({'message': 'Attendance checked in successfully.'}), 200
+            # Fetch course_type based on courseid
+            cursor.execute('SELECT course_type FROM course_data01 WHERE courseid = %s', (course_id,))
+            course_data = cursor.fetchone()
+
+            if course_data:
+                course_type = course_data['course_type']
+
+                # Process any remaining result set before executing a new query
+                cursor.fetchall()  # Ensure no pending results are left
+
+                # Insert into attendance table with course_type
+                cursor.execute('''
+                    INSERT INTO attendance (ta_id, course_id, date, start_time, end_time, status, course_type)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ''', (ta_id, course_id, data['date'], data['startTime'], data['endTime'], 'Present', course_type))
+                conn.commit()
+
+                return jsonify({'message': 'Attendance checked in successfully.'}), 200
+            else:
+                return jsonify({'message': 'Course not found.'}), 404
         else:
             return jsonify({'message': 'User not found.'}), 404
 
@@ -367,42 +383,6 @@ def submit_evaluation():
         conn.close()
 
 
-@app.route('/api/my_attendance', methods=['GET'])
-@cross_origin(origin='http://localhost:3000')
-@jwt_required()
-def get_my_attendance():
-    try:
-        identity = get_jwt_identity()
-        username = identity.get('username')
-
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute('''
-            SELECT date, start_time, end_time, course_id 
-            FROM attendance 
-            WHERE ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
-        ''', (username,))
-        attendance_records = cursor.fetchall()
-
-        # Convert time fields and date to appropriate formats
-        for record in attendance_records:
-            if isinstance(record['start_time'], timedelta):
-                record['start_time'] = str(record['start_time'])
-            if isinstance(record['end_time'], timedelta):
-                record['end_time'] = str(record['end_time'])
-            if isinstance(record['date'], datetime):
-                record['date'] = record['date'].strftime('%Y-%m-%d')
-
-        return jsonify({'attendance': attendance_records}), 200
-
-    except mysql.connector.Error as err:
-        return jsonify({'error': f"Database error: {str(err)}"}), 500
-    finally:
-        cursor.close()
-        conn.close()
-
-
 @app.route('/api/attendance_summary', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -413,15 +393,26 @@ def get_attendance_summary():
 
         with get_db_connection() as conn:
             with conn.cursor(dictionary=True) as cursor:
+                # Join with course_data01 to get the course_type
                 cursor.execute('''
                     SELECT attendance.course_id, attendance.date, attendance.start_time, attendance.end_time,
-                           ta_data.ta_name,
+                           ta_data.ta_name, course_data01.course_type,
                            TIMESTAMPDIFF(MINUTE, attendance.start_time, attendance.end_time) AS minutes_worked
                     FROM attendance
                     JOIN ta_data ON attendance.ta_id = ta_data.ta_id
+                    JOIN course_data01 ON attendance.course_id = course_data01.courseid
                     WHERE attendance.ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
                 ''', (username,))
                 attendance_records = cursor.fetchall()
+
+                # Define wage rates based on course_type
+                wage_rates = {
+                    'stu_thai': 90,
+                    'stu_inter': 120,
+                    'grad_thai': 200,
+                    'grad_inter': 300,
+                    'lecturer': 450
+                }
 
                 for record in attendance_records:
                     # Convert minutes to hours and minutes format
@@ -440,6 +431,11 @@ def get_attendance_summary():
                             minutes, seconds = divmod(remainder, 60)
                             record[time_field] = f'{int(hours):02}:{int(minutes):02}:{int(seconds):02}'
 
+                    # Calculate wage based on course_type
+                    course_type = record['course_type']
+                    rate_per_hour = wage_rates.get(course_type, 0)
+                    record['wage'] = rate_per_hour * (minutes_worked / 60)
+
                 return jsonify({'attendance': attendance_records}), 200
 
     except mysql.connector.Error as err:
@@ -449,6 +445,9 @@ def get_attendance_summary():
             errorcode.ER_BAD_DB_ERROR: "Database does not exist."
         }.get(err.errno, str(err))
         return jsonify({'error': error_msg}), 500
+
+
+
 
 
 if __name__ == '__main__':
