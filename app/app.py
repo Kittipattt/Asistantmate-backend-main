@@ -108,6 +108,34 @@ def login_teacher():
         return jsonify({"error": "Invalid Teacher_name or password"}), 401
 
 
+@app.route('/api/student_login', methods=['POST'])
+@cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
+def student_login():
+    con = get_db_connection()
+    if con is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    cursor = con.cursor(dictionary=True)
+    query = "SELECT * FROM student_data WHERE username = %s AND password = %s"
+    cursor.execute(query, (username, password))
+    user = cursor.fetchone()
+
+    try:
+        if user:
+            session['user'] = user['username']
+            access_token = create_access_token(identity={"username": user['username']})
+            return jsonify({"message": "Login successful", "user": user, "access_token": access_token}), 200
+        else:
+            return jsonify({"error": "Invalid username or password"}), 401
+    finally:
+        cursor.close()
+        con.close()
+
+
 @app.route('/api/my_courses', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
