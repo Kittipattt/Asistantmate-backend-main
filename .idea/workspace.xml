@@ -6,7 +6,28 @@
   <component name="ChangeListManager">
     <list default="true" id="56002bc6-1184-4585-bbe5-3e9049f0ec87" name="Changes" comment="login">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/attendance.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/auth.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/cancellation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/course.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/disbursement.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/evaluation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/notification.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/profile.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/wages.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/app/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/db.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/attendance.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/cancelled_class.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/course.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/disbursement.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/evaluation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/notification.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/profile.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/user.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/scripts/import_data.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -113,6 +134,8 @@
       <workItem from="1724730525597" duration="8938000" />
       <workItem from="1724990943283" duration="6745000" />
       <workItem from="1725251036252" duration="1695000" />
+      <workItem from="1725262863957" duration="148000" />
+      <workItem from="1725266449459" duration="3870000" />
     </task>
     <task id="LOCAL-00001" summary="login">
       <option name="closed" value="true" />
@@ -134,8 +157,8 @@
     <option name="LAST_COMMIT_MESSAGE" value="login" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/Asistantmate_backend$app.coverage" NAME="app Coverage Results" MODIFIED="1719507552476" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
-    <SUITE FILE_PATH="coverage/Asistantmate_backend_main$app.coverage" NAME="app Coverage Results" MODIFIED="1718620220985" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
     <SUITE FILE_PATH="coverage/Assistantmate_backend_main$app.coverage" NAME="app Coverage Results" MODIFIED="1725251841267" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
+    <SUITE FILE_PATH="coverage/Asistantmate_backend_main$app.coverage" NAME="app Coverage Results" MODIFIED="1718620220985" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
+    <SUITE FILE_PATH="coverage/Asistantmate_backend$app.coverage" NAME="app Coverage Results" MODIFIED="1725271319865" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
   </component>
 </project>
