@@ -23,8 +23,8 @@ def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        passwd="Ice15088",
-        database="amdata",
+        passwd="201245",
+        database="AMData",
         port=3306,
     )
 
@@ -365,6 +365,73 @@ def viewattendance():
         return jsonify({'error': error_msg}), 500
 
 
+@app.route('/api/attendance_summary', methods=['GET'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def get_attendance_summary():
+    try:
+        identity = get_jwt_identity()
+        username = identity.get('username')
+
+        with get_db_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                # Ensure no duplicate records by using DISTINCT or a GROUP BY clause
+                cursor.execute('''
+                    SELECT DISTINCT
+                        a.course_id, a.date, a.start_time, a.end_time,
+                        t.ta_name, c.course_type,
+                        TIMESTAMPDIFF(MINUTE, a.start_time, a.end_time) AS minutes_worked
+                    FROM attendance a
+                    JOIN ta_data t ON a.ta_id = t.ta_id
+                    JOIN course_data01 c ON a.course_id = c.courseid
+                    WHERE a.ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
+                ''', (username,))
+                attendance_records = cursor.fetchall()
+
+                # Define wage rates based on course_type
+                wage_rates = {
+                    'stu_thai': 90,
+                    'stu_inter': 120,
+                    'grad_thai': 200,
+                    'grad_inter': 300,
+                    'lecturer': 450
+                }
+
+                for record in attendance_records:
+                    # Convert minutes to hours and minutes format
+                    minutes_worked = record['minutes_worked']
+                    hours = minutes_worked // 60
+                    minutes = minutes_worked % 60
+                    record['hours_worked'] = f'{hours}h {minutes}m'
+
+                    # Convert datetime objects to strings
+                    if isinstance(record['date'], datetime):
+                        record['date'] = record['date'].strftime('%Y-%m-%d')
+
+                    # Format time fields
+                    for time_field in ['start_time', 'end_time']:
+                        if isinstance(record[time_field], timedelta):
+                            total_seconds = record[time_field].total_seconds()
+                            hours, remainder = divmod(total_seconds, 3600)
+                            minutes, seconds = divmod(remainder, 60)
+                            record[time_field] = f'{int(hours):02}:{int(minutes):02}:{int(seconds):02}'
+
+                    # Calculate wage based on course_type
+                    course_type = record['course_type']
+                    rate_per_hour = wage_rates.get(course_type, 0)
+                    record['wage'] = f'{rate_per_hour * (minutes_worked / 60):.2f}'
+
+                return jsonify({'attendance': attendance_records}), 200
+
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+        error_msg = {
+            errorcode.ER_ACCESS_DENIED_ERROR: "Something is wrong with your user name or password.",
+            errorcode.ER_BAD_DB_ERROR: "Database does not exist."
+        }.get(err.errno, str(err))
+        return jsonify({'error': error_msg}), 500
+
+
 @app.route('/api/course_sections/<course_id>', methods=['GET'])
 def get_course_sections(course_id):
     try:
@@ -470,9 +537,9 @@ def evaluate_results():
         """, (ta_name,))
         teacher_evaluations = cursor.fetchall()
 
-        # Query to get student evaluations
+        # Query to get student evaluations from ta_evaluations
         cursor.execute("""
-            SELECT * FROM student_evaluate WHERE ta_name = %s
+            SELECT * FROM ta_evaluations WHERE ta_name = %s
         """, (ta_name,))
         student_evaluations = cursor.fetchall()
 
@@ -500,7 +567,7 @@ def get_tas():
         cursor.execute("""
             SELECT DISTINCT ta_name FROM evaluate
             UNION
-            SELECT DISTINCT ta_name FROM student_evaluate
+            SELECT DISTINCT ta_name FROM ta_evaluations
         """)
         ta_names = cursor.fetchall()
 
@@ -511,6 +578,28 @@ def get_tas():
         cursor.close()
         con.close()
 
+
+@app.route('/api/get_ta_status', methods=['GET'])
+@jwt_required()
+def get_ta_status():
+    current_user = get_jwt_identity()  # Extract user information from the JWT token
+    username = current_user['username']
+
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    # Query to get TA status
+    query = "SELECT ta_status FROM ta_data WHERE username = %s"
+    cursor.execute(query, (username,))
+
+    result = cursor.fetchone()
+    cursor.close()
+    connection.close()
+
+    if result:
+        return jsonify({'ta_status': result['ta_status']})
+    else:
+        return jsonify({'message': 'TA status not found'}), 404
 
 
 if __name__ == '__main__':
