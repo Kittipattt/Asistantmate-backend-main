@@ -368,18 +368,30 @@ def get_courses_for_teacher():
 @jwt_required()
 def get_tas_for_course():
     course_id = request.args.get('course_id')
+    if not course_id:
+        return jsonify({"message": "Course ID is required"}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute('''
-        SELECT ta_id, ta_name
-        FROM ta_data
-        WHERE ta_id IN (SELECT ta_id FROM course_data01 WHERE courseid = %s)
-    ''', (course_id,))
-    tas = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify({"tas": tas})
+
+    try:
+        cursor.execute('''
+            SELECT ta_id, ta_name
+            FROM ta_data
+            WHERE ta_id IN (SELECT ta_id FROM course_data01 WHERE courseid = %s)
+        ''', (course_id,))
+        tas = cursor.fetchall()
+
+        if not tas:
+            return jsonify({"message": "No TAs found for the given course ID"}), 404
+
+        return jsonify({"tas": tas})
+
+    except mysql.connector.Error as error:
+        return jsonify({'message': 'Failed to fetch TAs.', 'error': str(error)}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 
 @app.route('/api/evaluate', methods=['POST'])
@@ -476,6 +488,78 @@ def get_attendance_summary():
             errorcode.ER_BAD_DB_ERROR: "Database does not exist."
         }.get(err.errno, str(err))
         return jsonify({'error': error_msg}), 500
+
+
+@app.route('/api/student_evaluate_submit', methods=['POST'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def student_evaluate_submit():
+    connection = None
+    cursor = None
+    try:
+        # Get the JSON data from the request
+        data = request.get_json()
+
+        ta_id = data.get('ta_id')
+        ta_name = data.get('ta_name')
+        score = data.get('score')
+        evaluate_date = data.get('evaluate_date')
+        username = data.get('evaluator')  # Expecting the username in the request
+        course_id = data.get('course_id')
+        comment = data.get('comment')  # Get the comment from the request
+
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Retrieve evaluator's full name from student_data table
+        cursor.execute("SELECT first_name, last_name FROM student_data WHERE username = %s", (username,))
+        result = cursor.fetchone()
+
+        if result:
+            evaluator_name = f"{result[0]} {result[1]}"
+        else:
+            return jsonify({'message': 'Evaluator not found'}), 404
+
+        # Insert evaluation data into the student_evaluate table
+        query = """
+        INSERT INTO student_evaluate (ta_name, ta_id, score, evaluate_date, evaluator_name, course_id, comment)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        values = (ta_name, ta_id, score, evaluate_date, evaluator_name, course_id, comment)
+        cursor.execute(query, values)
+        connection.commit()
+
+        response = {'message': 'Evaluation submitted successfully'}
+        return jsonify(response), 200
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'message': 'Failed to submit evaluation'}), 500
+
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if connection is not None:
+            connection.close()
+
+
+@app.route('/api/courses_and_sections', methods=['GET'])
+@jwt_required()
+def get_courses_and_sections():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    query = """
+    SELECT courseid, course_name, section
+    FROM course_data01
+    """
+    cursor.execute(query)
+    results = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(results)
 
 
 if __name__ == '__main__':
