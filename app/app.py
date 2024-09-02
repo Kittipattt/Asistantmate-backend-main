@@ -7,6 +7,7 @@ from flask_jwt_extended import create_access_token, JWTManager, jwt_required, ge
 import secrets
 
 from mysql.connector import errorcode
+from werkzeug.security import check_password_hash
 
 app = Flask(__name__)
 app.secret_key = secrets.token_urlsafe(16)
@@ -129,6 +130,36 @@ def student_login():
             session['user'] = user['username']
             access_token = create_access_token(identity={"username": user['username']})
             return jsonify({"message": "Login successful", "user": user, "access_token": access_token}), 200
+        else:
+            return jsonify({"error": "Invalid username or password"}), 401
+    finally:
+        cursor.close()
+        con.close()
+
+
+@app.route('/api/admin_login', methods=['POST'])
+@cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
+def admin_login():
+    con = get_db_connection()
+    if con is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    cursor = con.cursor(dictionary=True)
+    query = "SELECT * FROM admin_data WHERE username = %s AND password = %s"
+    cursor.execute(query, (username, password))
+    admin = cursor.fetchone()
+
+    try:
+        if admin:
+            session['admin'] = admin['username']
+            access_token = create_access_token(identity={"username": admin['username'], "name": admin['name']})
+            return jsonify(
+                {"message": "Login successful", "admin": {"username": admin['username'], "name": admin['name']},
+                 "access_token": access_token}), 200
         else:
             return jsonify({"error": "Invalid username or password"}), 401
     finally:
@@ -560,6 +591,67 @@ def get_courses_and_sections():
     conn.close()
 
     return jsonify(results)
+
+
+@app.route('/api/evaluate_results', methods=['POST'])
+@cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
+def evaluate_results():
+    con = get_db_connection()
+    if con is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    data = request.get_json()
+    ta_name = data.get('ta_name')
+
+    cursor = con.cursor(dictionary=True)
+    try:
+        # Query to get teacher evaluations
+        cursor.execute("""
+            SELECT * FROM evaluate WHERE ta_name = %s
+        """, (ta_name,))
+        teacher_evaluations = cursor.fetchall()
+
+        # Query to get student evaluations
+        cursor.execute("""
+            SELECT * FROM student_evaluate WHERE ta_name = %s
+        """, (ta_name,))
+        student_evaluations = cursor.fetchall()
+
+        return jsonify({
+            "teacher_evaluations": teacher_evaluations,
+            "student_evaluations": student_evaluations
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        con.close()
+
+
+@app.route('/api/get_tas', methods=['GET'])
+@cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
+def get_tas():
+    con = get_db_connection()
+    if con is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    cursor = con.cursor(dictionary=True)
+    try:
+        # Query to get distinct TA names from both tables
+        cursor.execute("""
+            SELECT DISTINCT ta_name FROM evaluate
+            UNION
+            SELECT DISTINCT ta_name FROM student_evaluate
+        """)
+        ta_names = cursor.fetchall()
+
+        return jsonify({"tas": [ta['ta_name'] for ta in ta_names]}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        con.close()
+
 
 
 if __name__ == '__main__':
