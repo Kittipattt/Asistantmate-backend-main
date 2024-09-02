@@ -23,8 +23,8 @@ def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        passwd="201245",
-        database="AMData",
+        passwd="Ice15088",
+        database="amdata",
         port=3306,
     )
 
@@ -100,12 +100,10 @@ def login_teacher():
     user = cursor.fetchone()
 
     if user:
-        # Successful login
         session['user'] = user['Teacher_name']
         access_token = create_access_token(identity={"Teacher_name": user['Teacher_name']})
         return jsonify({"message": "Login successful", "user": user, "access_token": access_token}), 200
     else:
-        # Invalid credentials
         return jsonify({"error": "Invalid Teacher_name or password"}), 401
 
 
@@ -224,7 +222,6 @@ def cancel_class():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Insert cancellation data into the `cancel` table
         insert_query = """
         INSERT INTO cancel (course_id, cancelled_date, cancellation_reason)
         VALUES (%s, %s, %s)
@@ -271,7 +268,6 @@ def check_in():
     data = request.get_json()
 
     try:
-        # Fetch the ID associated with the username from ta_data table
         cursor.execute('SELECT ta_id FROM ta_data WHERE username = %s', (username,))
         ta_data = cursor.fetchone()
 
@@ -279,20 +275,16 @@ def check_in():
             ta_id = ta_data['ta_id']
             course_id = data['course_id']
 
-            # Process any remaining result set before executing a new query
-            cursor.fetchall()  # Ensure no pending results are left
+            cursor.fetchall()
 
-            # Fetch course_type based on courseid
             cursor.execute('SELECT course_type FROM course_data01 WHERE courseid = %s', (course_id,))
             course_data = cursor.fetchone()
 
             if course_data:
                 course_type = course_data['course_type']
 
-                # Process any remaining result set before executing a new query
-                cursor.fetchall()  # Ensure no pending results are left
+                cursor.fetchall()
 
-                # Insert into attendance table with course_type
                 cursor.execute('''
                     INSERT INTO attendance (ta_id, course_id, date, start_time, end_time, status, course_type)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -322,7 +314,6 @@ def get_attendance():
         cursor.execute('SELECT * FROM attendance')
         attendance = cursor.fetchall()
 
-        # Convert timedelta objects to strings
         for record in attendance:
             record['start_time'] = str(record['start_time'])
             record['end_time'] = str(record['end_time'])
@@ -374,223 +365,91 @@ def viewattendance():
         return jsonify({'error': error_msg}), 500
 
 
-@app.route('/api/teacher_courses', methods=['GET'])
-@cross_origin(origin='http://localhost:3000')
-@jwt_required()
-def get_courses_for_teacher():
-    identity = get_jwt_identity()
-    teacher_name = identity.get('Teacher_name')
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute('''
-        SELECT courseid, course_name 
-        FROM course_data01 
-        WHERE Teacher_id = (SELECT Teacher_id FROM teacher_data WHERE Teacher_name = %s)
-    ''', (teacher_name,))
-    courses = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify({"courses": courses})
-
-
-@app.route('/api/ta_for_course', methods=['GET'])
-@cross_origin(origin='http://localhost:3000')
-@jwt_required()
-def get_tas_for_course():
-    course_id = request.args.get('course_id')
-    if not course_id:
-        return jsonify({"message": "Course ID is required"}), 400
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
+@app.route('/api/course_sections/<course_id>', methods=['GET'])
+def get_course_sections(course_id):
     try:
-        cursor.execute('''
-            SELECT ta_id, ta_name
-            FROM ta_data
-            WHERE ta_id IN (SELECT ta_id FROM course_data01 WHERE courseid = %s)
-        ''', (course_id,))
-        tas = cursor.fetchall()
-
-        if not tas:
-            return jsonify({"message": "No TAs found for the given course ID"}), 404
-
-        return jsonify({"tas": tas})
-
-    except mysql.connector.Error as error:
-        return jsonify({'message': 'Failed to fetch TAs.', 'error': str(error)}), 500
-    finally:
-        cursor.close()
-        conn.close()
-
-
-@app.route('/api/evaluate', methods=['POST'])
-@cross_origin(origin='http://localhost:3000')
-@jwt_required()
-def submit_evaluation():
-    data = request.get_json()
-    identity = get_jwt_identity()
-    teacher_name = identity.get('Teacher_name')
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute('''
-            INSERT INTO evaluate (ta_name, ta_id, score, comment, evaluate_date, Teacher_name, course_id)
-            VALUES (
-                (SELECT ta_name FROM ta_data WHERE ta_id = %s),
-                %s, %s, %s, NOW(), %s, %s
-            )
-        ''', (
-            data['ta_id'], data['ta_id'], data['score'], data['comment'], teacher_name, data['course_id']
-        ))
-        conn.commit()
-        return jsonify({"status": "success"}), 201
-    except mysql.connector.Error as error:
-        return jsonify({'message': 'Failed to submit evaluation.', 'error': str(error)}), 500
-    finally:
-        cursor.close()
-        conn.close()
-
-
-@app.route('/api/attendance_summary', methods=['GET'])
-@cross_origin(origin='http://localhost:3000')
-@jwt_required()
-def get_attendance_summary():
-    try:
-        identity = get_jwt_identity()
-        username = identity.get('username')
-
-        with get_db_connection() as conn:
-            with conn.cursor(dictionary=True) as cursor:
-                # Ensure no duplicate records by using DISTINCT or a GROUP BY clause
-                cursor.execute('''
-                    SELECT DISTINCT
-                        a.course_id, a.date, a.start_time, a.end_time,
-                        t.ta_name, c.course_type,
-                        TIMESTAMPDIFF(MINUTE, a.start_time, a.end_time) AS minutes_worked
-                    FROM attendance a
-                    JOIN ta_data t ON a.ta_id = t.ta_id
-                    JOIN course_data01 c ON a.course_id = c.courseid
-                    WHERE a.ta_id = (SELECT ta_id FROM ta_data WHERE username = %s)
-                ''', (username,))
-                attendance_records = cursor.fetchall()
-
-                # Define wage rates based on course_type
-                wage_rates = {
-                    'stu_thai': 90,
-                    'stu_inter': 120,
-                    'grad_thai': 200,
-                    'grad_inter': 300,
-                    'lecturer': 450
-                }
-
-                for record in attendance_records:
-                    # Convert minutes to hours and minutes format
-                    minutes_worked = record['minutes_worked']
-                    hours = minutes_worked // 60
-                    minutes = minutes_worked % 60
-                    record['hours_worked'] = f'{hours}h {minutes}m'
-
-                    # Convert datetime objects to strings
-                    if isinstance(record['date'], datetime):
-                        record['date'] = record['date'].strftime('%Y-%m-%d')
-
-                    # Format time fields
-                    for time_field in ['start_time', 'end_time']:
-                        if isinstance(record[time_field], timedelta):
-                            total_seconds = record[time_field].total_seconds()
-                            hours, remainder = divmod(total_seconds, 3600)
-                            minutes, seconds = divmod(remainder, 60)
-                            record[time_field] = f'{int(hours):02}:{int(minutes):02}:{int(seconds):02}'
-
-                    # Calculate wage based on course_type
-                    course_type = record['course_type']
-                    rate_per_hour = wage_rates.get(course_type, 0)
-                    record['wage'] = f'{rate_per_hour * (minutes_worked / 60):.2f}'
-
-                return jsonify({'attendance': attendance_records}), 200
-
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT section FROM course_data01 
+            WHERE courseid = %s
+        """, (course_id,))
+        sections = cursor.fetchall()
+        return jsonify(sections), 200
     except mysql.connector.Error as err:
-        print(f"Error: {err}")
-        error_msg = {
-            errorcode.ER_ACCESS_DENIED_ERROR: "Something is wrong with your user name or password.",
-            errorcode.ER_BAD_DB_ERROR: "Database does not exist."
-        }.get(err.errno, str(err))
-        return jsonify({'error': error_msg}), 500
+        return jsonify({'message': f"Error: {err}"}), 500
+    finally:
+        cursor.close()
+        connection.close()
 
 
-@app.route('/api/student_evaluate_submit', methods=['POST'])
-@cross_origin(origin='http://localhost:3000')
-@jwt_required()
-def student_evaluate_submit():
-    connection = None
-    cursor = None
+@app.route('/courses', methods=['GET'])
+def get_all_courses():
     try:
-        # Get the JSON data from the request
-        data = request.get_json()
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT DISTINCT courseid, course_name FROM course_data01
+        """)
+        courses = cursor.fetchall()
+        return jsonify(courses), 200
+    except mysql.connector.Error as err:
+        return jsonify({'message': f"Error: {err}"}), 500
+    finally:
+        cursor.close()
+        connection.close()
 
-        ta_id = data.get('ta_id')
-        ta_name = data.get('ta_name')
-        score = data.get('score')
-        evaluate_date = data.get('evaluate_date')
-        username = data.get('evaluator')  # Expecting the username in the request
-        course_id = data.get('course_id')
-        comment = data.get('comment')  # Get the comment from the request
 
+@app.route('/api/course_tas/<course_id>/<section>', methods=['GET'])
+def get_course_tas(course_id, section):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT ta_data.ta_id, ta_data.ta_name 
+            FROM course_data01 
+            JOIN ta_data ON course_data01.ta_id = ta_data.ta_id 
+            WHERE course_data01.courseid = %s AND course_data01.section = %s
+        """, (course_id, section))
+        tas = cursor.fetchall()
+        return jsonify(tas), 200
+    except mysql.connector.Error as err:
+        return jsonify({'message': f"Error: {err}"}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.route('/api/evaluate_ta', methods=['POST'])
+def evaluate_ta():
+    data = request.json
+    name = data.get('name')
+    course_id = data.get('course')
+    section = data.get('section')
+    ta_name = data.get('taName')
+    score = data.get('score')
+    comment = data.get('comment')
+
+    if not all([name, course_id, section, ta_name, score, comment]):
+        return jsonify({'message': 'Please fill in all fields'}), 400
+
+    try:
         connection = get_db_connection()
         cursor = connection.cursor()
 
-        # Retrieve evaluator's full name from student_data table
-        cursor.execute("SELECT first_name, last_name FROM student_data WHERE username = %s", (username,))
-        result = cursor.fetchone()
-
-        if result:
-            evaluator_name = f"{result[0]} {result[1]}"
-        else:
-            return jsonify({'message': 'Evaluator not found'}), 404
-
-        # Insert evaluation data into the student_evaluate table
-        query = """
-        INSERT INTO student_evaluate (ta_name, ta_id, score, evaluate_date, evaluator_name, course_id, comment)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """
-        values = (ta_name, ta_id, score, evaluate_date, evaluator_name, course_id, comment)
-        cursor.execute(query, values)
+        cursor.execute(
+            "INSERT INTO ta_evaluations (name, course_id, section, ta_name, score, comment) VALUES (%s, %s, %s, %s, %s, %s)",
+            (name, course_id, section, ta_name, score, comment)
+        )
         connection.commit()
 
-        response = {'message': 'Evaluation submitted successfully'}
-        return jsonify(response), 200
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({'message': 'Failed to submit evaluation'}), 500
-
+        return jsonify({'message': 'Evaluation submitted successfully'}), 200
+    except mysql.connector.Error as err:
+        app.logger.error(f"Error: {err}")
+        return jsonify({'message': f"Error: {err}"}), 500
     finally:
-        if cursor is not None:
-            cursor.close()
-        if connection is not None:
-            connection.close()
-
-
-@app.route('/api/courses_and_sections', methods=['GET'])
-@jwt_required()
-def get_courses_and_sections():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    query = """
-    SELECT courseid, course_name, section
-    FROM course_data01
-    """
-    cursor.execute(query)
-    results = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    return jsonify(results)
+        cursor.close()
+        connection.close()
 
 
 @app.route('/api/evaluate_results', methods=['POST'])
