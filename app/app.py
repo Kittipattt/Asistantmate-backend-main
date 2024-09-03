@@ -107,6 +107,25 @@ def login_teacher():
         return jsonify({"error": "Invalid Teacher_name or password"}), 401
 
 
+@app.route('/api/ta_for_course', methods=['GET'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def get_tas_for_course():
+    course_id = request.args.get('course_id')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
+        SELECT ta_id, ta_name
+        FROM ta_data
+        WHERE ta_id IN (SELECT ta_id FROM course_data01 WHERE courseid = %s)
+    ''', (course_id,))
+    tas = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify({"tas": tas})
+
+
 @app.route('/api/student_login', methods=['POST'])
 @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
 def student_login():
