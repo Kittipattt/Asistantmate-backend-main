@@ -86,25 +86,38 @@ def login():
 @app.route('/login_teacher', methods=['POST'])
 @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
 def login_teacher():
-    connection = get_db_connection()
-    if connection is None:
-        return jsonify({"error": "Database connection failed"}), 500
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if connection is None:
+            return jsonify({"error": "Database connection failed"}), 500
 
-    data = request.get_json()
-    teacher_name = data.get('Teacher_name')
-    password = data.get('password')
+        data = request.get_json()
+        teacher_name = data.get('Teacher_name')
+        password = data.get('password')
 
-    cursor = connection.cursor(dictionary=True)
-    query = "SELECT * FROM teacher_data WHERE Teacher_name = %s AND password = %s"
-    cursor.execute(query, (teacher_name, password))
-    user = cursor.fetchone()
+        cursor = connection.cursor(dictionary=True)
+        query = "SELECT * FROM teacher_data WHERE Teacher_name = %s AND password = %s"
+        cursor.execute(query, (teacher_name, password))
+        user = cursor.fetchone()
 
-    if user:
-        session['user'] = user['Teacher_name']
-        access_token = create_access_token(identity={"Teacher_name": user['Teacher_name']})
-        return jsonify({"message": "Login successful", "user": user, "access_token": access_token}), 200
-    else:
-        return jsonify({"error": "Invalid Teacher_name or password"}), 401
+        if user:
+            session['user'] = user['Teacher_name']
+            access_token = create_access_token(identity={"Teacher_name": user['Teacher_name']})
+            return jsonify({"message": "Login successful", "user": user, "access_token": access_token}), 200
+        else:
+            return jsonify({"error": "Invalid Teacher_name or password"}), 401
+
+    except mysql.connector.Error as err:
+        return jsonify({"error": f"MySQL error: {str(err)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 
 @app.route('/api/ta_for_course', methods=['GET'])
@@ -648,6 +661,197 @@ def get_ta_status():
         return jsonify({'ta_status': result['ta_status']})
     else:
         return jsonify({'message': 'TA status not found'}), 404
+
+
+from flask import jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
+
+@app.route('/api/ta_notifications', methods=['GET'])
+@jwt_required()
+def get_ta_notifications():
+    try:
+        # Get the identity from the JWT token
+        identity = get_jwt_identity()
+
+        # Extract the username from the identity dictionary
+        username = identity.get('username')
+
+        if not username:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        # Fetch the TA ID based on the username
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        ta_query = "SELECT ta_id FROM ta_data WHERE username = %s"
+        cursor.execute(ta_query, (username,))
+        ta = cursor.fetchone()
+
+        if ta is None:
+            return jsonify({"error": "TA not found"}), 404
+
+        ta_id = int(ta['ta_id'])
+
+        # SQL query to fetch cancellations related to the TA's courses
+        query = """
+        SELECT c.cancel_id, c.course_id, c.cancelled_date, c.cancellation_reason, c.created_at
+        FROM cancel c
+        JOIN course_data01 cd ON c.course_id = cd.courseid
+        WHERE cd.ta_id = %s
+        """
+
+        # Execute the query with the TA's ID
+        cursor.execute(query, (ta_id,))
+        cancellations = cursor.fetchall()
+
+        # Close the database connection
+        cursor.close()
+        connection.close()
+
+        # Return the results as JSON
+        return jsonify(cancellations), 200
+
+    except Exception as e:
+        # Log the error and return a 500 Internal Server Error response
+        print(f"Error fetching TA notifications: {str(e)}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+
+def timedelta_to_str(td):
+    """Convert timedelta to a string representation (e.g., total seconds)."""
+    if isinstance(td, timedelta):
+        return str(td.total_seconds())
+    return td
+
+
+def datetime_to_str(dt):
+    """Convert datetime to a string representation."""
+    if isinstance(dt, datetime):
+        return dt.isoformat()
+    return dt
+
+
+logging.basicConfig(level=logging.DEBUG)
+
+
+@app.route('/api/teacher_notifications', methods=['GET'])
+@jwt_required()
+def get_teacher_notifications():
+    cursor = None
+    connection = None
+    try:
+        current_user = get_jwt_identity()
+        teacher_name = current_user.get("Teacher_name")
+
+        if not teacher_name:
+            return jsonify({"error": "No teacher logged in"}), 401
+
+        connection = get_db_connection()
+        if connection is None:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor(dictionary=True)
+
+        query = "SELECT Teacher_id FROM teacher_data WHERE Teacher_name = %s"
+        cursor.execute(query, (teacher_name,))
+        teacher = cursor.fetchone()
+
+        if not teacher:
+            return jsonify({"error": "Teacher not found"}), 404
+
+        teacher_id = teacher['Teacher_id']
+
+        query = """
+        SELECT DISTINCT a.id, a.ta_id, a.course_id, a.date, a.start_time, a.end_time, a.status, a.course_type
+        FROM attendance a
+        JOIN course_data01 c ON a.course_id = c.courseid
+        WHERE c.Teacher_id = %s
+        """
+        cursor.execute(query, (teacher_id,))
+        notifications = cursor.fetchall()
+
+        logging.debug(f"Fetched notifications from database: {notifications}")
+
+        for notification in notifications:
+            notification['date'] = datetime_to_str(notification.get('date'))
+            notification['start_time'] = timedelta_to_str(notification.get('start_time'))
+            notification['end_time'] = timedelta_to_str(notification.get('end_time'))
+
+        logging.debug(f"Processed notifications: {notifications}")
+
+        return jsonify(notifications), 200
+
+    except mysql.connector.Error as err:
+        return jsonify({"error": f"MySQL error: {str(err)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+@app.route('/api/approve_notification', methods=['POST'])
+@jwt_required()
+def approve_notification():
+    try:
+        # Fetch the logged-in teacher's ID from the JWT token
+        current_user = get_jwt_identity()
+        teacher_name = current_user.get("Teacher_name")
+
+        # Validate that the teacher is logged in
+        if not teacher_name:
+            return jsonify({"error": "No teacher logged in"}), 401
+
+        # Connect to the database
+        connection = get_db_connection()
+        if connection is None:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor()
+
+        # Get the notification ID from the request
+        notification_id = request.json.get('id')
+
+        # Update the notification status to "Approved"
+        query = "UPDATE attendance SET status = 'Approved' WHERE id = %s"
+        cursor.execute(query, (notification_id,))
+        connection.commit()
+
+        return jsonify({"message": "Notification approved"}), 200
+
+    except mysql.connector.Error as err:
+        return jsonify({"error": f"MySQL error: {str(err)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+@app.route('/api/reject_notification', methods=['POST'])
+def reject_notification():
+    data = request.get_json()
+    notification_id = data.get('id')
+
+    # Validate the notification_id
+    if not notification_id:
+        return jsonify({"error": "Invalid notification ID"}), 400
+
+    # Perform deletion from the database
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM attendance WHERE id = %s', (notification_id,))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({"message": "Notification deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':
