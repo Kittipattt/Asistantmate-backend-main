@@ -538,6 +538,35 @@ def evaluate_ta():
         connection.close()
 
 
+@app.route('/api/evaluate', methods=['POST'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def submit_evaluation():
+    data = request.get_json()
+    identity = get_jwt_identity()
+    teacher_name = identity.get('Teacher_name')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            INSERT INTO evaluate (ta_name, ta_id, score, comment, evaluate_date, Teacher_name, course_id)
+            VALUES (
+                (SELECT ta_name FROM ta_data WHERE ta_id = %s),
+                %s, %s, %s, NOW(), %s, %s
+            )
+        ''', (
+            data['ta_id'], data['ta_id'], data['score'], data['comment'], teacher_name, data['course_id']
+        ))
+        conn.commit()
+        return jsonify({"status": "success"}), 201
+    except mysql.connector.Error as error:
+        return jsonify({'message': 'Failed to submit evaluation.', 'error': str(error)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @app.route('/api/evaluate_results', methods=['POST'])
 @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
 def evaluate_results():
