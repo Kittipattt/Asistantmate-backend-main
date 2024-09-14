@@ -38,23 +38,7 @@ def after_request(response):
     return response
 
 
-@app.route('/api/courses', methods=['GET'])
-@cross_origin(origin='http://localhost:3000')
-def get_courses():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute('''
-        SELECT *
-        FROM course_data01
-        INNER JOIN amdata.ta_data ON amdata.course_data01.ta_id = amdata.ta_data.ta_id
-        INNER JOIN amdata.teacher_data ON amdata.course_data01.Teacher_id = amdata.teacher_data.Teacher_id
-    ''')
-    courses = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify({"courses": courses})
-
-
+#Auth
 @app.route('/login', methods=['POST'])
 @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
 def login():
@@ -82,7 +66,7 @@ def login():
         cursor.close()
         connection.close()
 
-
+#Auth
 @app.route('/login_teacher', methods=['POST'])
 @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
 def login_teacher():
@@ -119,26 +103,7 @@ def login_teacher():
         if connection:
             connection.close()
 
-
-@app.route('/api/ta_for_course', methods=['GET'])
-@cross_origin(origin='http://localhost:3000')
-@jwt_required()
-def get_tas_for_course():
-    course_id = request.args.get('course_id')
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute('''
-        SELECT ta_id, ta_name
-        FROM ta_data
-        WHERE ta_id IN (SELECT ta_id FROM course_data01 WHERE courseid = %s)
-    ''', (course_id,))
-    tas = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify({"tas": tas})
-
-
+#Auth
 @app.route('/api/student_login', methods=['POST'])
 @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
 def student_login():
@@ -166,7 +131,7 @@ def student_login():
         cursor.close()
         con.close()
 
-
+#Auth
 @app.route('/api/admin_login', methods=['POST'])
 @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
 def admin_login():
@@ -197,6 +162,68 @@ def admin_login():
         con.close()
 
 
+
+#Auth
+@app.route('/api/get_ta_status', methods=['GET'])
+@jwt_required()
+def get_ta_status():
+    current_user = get_jwt_identity()  # Extract user information from the JWT token
+    username = current_user['username']
+
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    # Query to get TA status
+    query = "SELECT ta_status FROM ta_data WHERE username = %s"
+    cursor.execute(query, (username,))
+
+    result = cursor.fetchone()
+    cursor.close()
+    connection.close()
+
+    if result:
+        return jsonify({'ta_status': result['ta_status']})
+    else:
+        return jsonify({'message': 'TA status not found'}), 404
+
+
+#Course
+@app.route('/api/courses', methods=['GET'])
+@cross_origin(origin='http://localhost:3000')
+def get_courses():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
+        SELECT *
+        FROM course_data01
+        INNER JOIN amdata.ta_data ON amdata.course_data01.ta_id = amdata.ta_data.ta_id
+        INNER JOIN amdata.teacher_data ON amdata.course_data01.Teacher_id = amdata.teacher_data.Teacher_id
+    ''')
+    courses = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify({"courses": courses})
+
+#Course
+@app.route('/api/ta_for_course', methods=['GET'])
+@cross_origin(origin='http://localhost:3000')
+@jwt_required()
+def get_tas_for_course():
+    course_id = request.args.get('course_id')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
+        SELECT ta_id, ta_name
+        FROM ta_data
+        WHERE ta_id IN (SELECT ta_id FROM course_data01 WHERE courseid = %s)
+    ''', (course_id,))
+    tas = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify({"tas": tas})
+
+#Course
 @app.route('/api/my_courses', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -217,7 +244,7 @@ def get_my_courses():
     conn.close()
     return jsonify({"courses": courses})
 
-
+#Course
 @app.route('/api/teacher_courses', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -238,7 +265,7 @@ def get_teacher_courses():
     conn.close()
     return jsonify({"courses": courses})
 
-
+#Course
 @app.route('/api/cancel_class', methods=['POST'])
 def cancel_class():
     data = request.json
@@ -269,7 +296,7 @@ def cancel_class():
     except Exception as e:
         return jsonify({'message': 'Failed to cancel class', 'error': str(e)}), 500
 
-
+#User
 @app.route('/api/current_user', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -278,7 +305,7 @@ def get_current_user():
     username = identity.get('username')
     return jsonify({"username": username})
 
-
+#User
 @app.route('/api/current_teacher', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -287,7 +314,7 @@ def get_current_teacher():
     Teacher_name = identity.get('Teacher_name')
     return jsonify({"Teacher_name": Teacher_name})
 
-
+#Attendnace
 @app.route('/api/checkin', methods=['POST'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -335,7 +362,7 @@ def check_in():
         cursor.close()
         conn.close()
 
-
+#Attendnace
 @app.route('/api/attendance', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 def get_attendance():
@@ -357,7 +384,7 @@ def get_attendance():
         cursor.close()
         conn.close()
 
-
+#Attendnace
 @app.route('/api/viewattendance', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -396,7 +423,7 @@ def viewattendance():
         }.get(err.errno, str(err))
         return jsonify({'error': error_msg}), 500
 
-
+#Attendnace
 @app.route('/api/attendance_summary', methods=['GET'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -463,7 +490,7 @@ def get_attendance_summary():
         }.get(err.errno, str(err))
         return jsonify({'error': error_msg}), 500
 
-
+#Attendnace
 @app.route('/api/course_sections/<course_id>', methods=['GET'])
 def get_course_sections(course_id):
     try:
@@ -481,7 +508,7 @@ def get_course_sections(course_id):
         cursor.close()
         connection.close()
 
-
+#Attendnace
 @app.route('/courses', methods=['GET'])
 def get_all_courses():
     try:
@@ -498,7 +525,7 @@ def get_all_courses():
         cursor.close()
         connection.close()
 
-
+#Attendnace
 @app.route('/api/course_tas/<course_id>/<section>', methods=['GET'])
 def get_course_tas(course_id, section):
     try:
@@ -518,7 +545,7 @@ def get_course_tas(course_id, section):
         cursor.close()
         connection.close()
 
-
+#Evaluate
 @app.route('/api/evaluate_ta', methods=['POST'])
 def evaluate_ta():
     data = request.json
@@ -550,7 +577,7 @@ def evaluate_ta():
         cursor.close()
         connection.close()
 
-
+#Evaluate
 @app.route('/api/evaluate', methods=['POST'])
 @cross_origin(origin='http://localhost:3000')
 @jwt_required()
@@ -579,7 +606,7 @@ def submit_evaluation():
         cursor.close()
         conn.close()
 
-
+#Evaluate
 @app.route('/api/evaluate_results', methods=['POST'])
 @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
 def evaluate_results():
@@ -614,7 +641,7 @@ def evaluate_results():
         cursor.close()
         con.close()
 
-
+#Evaluate
 @app.route('/api/get_tas', methods=['GET'])
 @cross_origin(origin='http://localhost:3000', headers=['Content-Type', 'Authorization'])
 def get_tas():
@@ -640,33 +667,7 @@ def get_tas():
         con.close()
 
 
-@app.route('/api/get_ta_status', methods=['GET'])
-@jwt_required()
-def get_ta_status():
-    current_user = get_jwt_identity()  # Extract user information from the JWT token
-    username = current_user['username']
-
-    connection = get_db_connection()
-    cursor = connection.cursor(dictionary=True)
-
-    # Query to get TA status
-    query = "SELECT ta_status FROM ta_data WHERE username = %s"
-    cursor.execute(query, (username,))
-
-    result = cursor.fetchone()
-    cursor.close()
-    connection.close()
-
-    if result:
-        return jsonify({'ta_status': result['ta_status']})
-    else:
-        return jsonify({'message': 'TA status not found'}), 404
-
-
-from flask import jsonify, request
-from flask_jwt_extended import jwt_required, get_jwt_identity
-
-
+#Notification
 @app.route('/api/ta_notifications', methods=['GET'])
 @jwt_required()
 def get_ta_notifications():
@@ -733,7 +734,7 @@ def datetime_to_str(dt):
 
 logging.basicConfig(level=logging.DEBUG)
 
-
+#Notification
 @app.route('/api/teacher_notifications', methods=['GET'])
 @jwt_required()
 def get_teacher_notifications():
@@ -791,7 +792,7 @@ def get_teacher_notifications():
         if connection:
             connection.close()
 
-
+#Notification
 @app.route('/api/approve_notification', methods=['POST'])
 @jwt_required()
 def approve_notification():
@@ -831,7 +832,7 @@ def approve_notification():
         if connection:
             connection.close()
 
-
+#Notification
 @app.route('/api/reject_notification', methods=['POST'])
 def reject_notification():
     data = request.get_json()
