@@ -13,7 +13,10 @@ from controller.course_controller import course_bp
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 
+# Set secret keys
 app.config['JWT_SECRET_KEY'] = 'your_jwt_secret_key'  # Replace with actual secret key
+app.config['SECRET_KEY'] = 'your_secret_key'  # Add this for Flask sessions, replace with a secure key
+
 jwt = JWTManager(app)
 
 # Register blueprints (controller)

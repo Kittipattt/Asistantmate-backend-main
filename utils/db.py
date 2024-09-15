@@ -5,7 +5,7 @@ def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        passwd="201245",
-        database="AMData",
+        passwd="Ice15088",
+        database="amdata",
         port=3306,
     )

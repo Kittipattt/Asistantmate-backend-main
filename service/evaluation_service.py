@@ -47,7 +47,7 @@ class EvaluationService:
             ))
             conn.commit()
 
-            return {"status": "success", 'status': 201}
+            return {"message": "Evaluation submitted successfully", 'status': 201}
         except Exception as error:
             return {'message': 'Failed to submit evaluation.', 'error': str(error), 'status': 500}
         finally:
@@ -58,11 +58,13 @@ class EvaluationService:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         try:
+            # Fetch teacher evaluations
             cursor.execute('''
                 SELECT * FROM evaluate WHERE ta_name = %s
             ''', (ta_name,))
             teacher_evaluations = cursor.fetchall()
 
+            # Fetch student evaluations
             cursor.execute('''
                 SELECT * FROM ta_evaluations WHERE ta_name = %s
             ''', (ta_name,))
@@ -74,7 +76,7 @@ class EvaluationService:
                 "status": 200
             }
         except Exception as e:
-            return {"error": str(e), 'status': 500}
+            return {"message": 'Failed to fetch evaluation results', "error": str(e), 'status': 500}
         finally:
             cursor.close()
             conn.close()

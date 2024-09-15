@@ -14,6 +14,7 @@ def check_in():
     return jsonify(response), response.get('status', 200)
 
 @attendance_bp.route('/api/attendance', methods=['GET'])
+@jwt_required()  # Ensuring that only authenticated users can access attendance
 def get_attendance():
     response = attendance_service.get_attendance()
     return jsonify(response), response.get('status', 200)
@@ -30,4 +31,13 @@ def view_attendance():
 def get_attendance_summary():
     user_identity = get_jwt_identity()
     response = attendance_service.get_attendance_summary(user_identity['username'])
+    return jsonify(response), response.get('status', 200)
+
+# Cancel class endpoint
+@attendance_bp.route('/api/cancel_class', methods=['POST'])
+@jwt_required()
+def cancel_class():
+    data = request.get_json()
+    user_identity = get_jwt_identity()  # Ensure that only logged-in users can cancel a class
+    response = attendance_service.cancel_class(data)
     return jsonify(response), response.get('status', 200)

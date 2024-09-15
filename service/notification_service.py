@@ -39,6 +39,11 @@ class NotificationService:
             cursor.execute(query, (ta_id,))
             cancellations = cursor.fetchall()
 
+            # Convert datetime fields to strings for JSON serialization
+            for cancellation in cancellations:
+                cancellation['cancelled_date'] = self.datetime_to_str(cancellation.get('cancelled_date'))
+                cancellation['created_at'] = self.datetime_to_str(cancellation.get('created_at'))
+
             return {'cancellations': cancellations, 'status': 200}
         finally:
             cursor.close()
@@ -64,6 +69,7 @@ class NotificationService:
             cursor.execute(query, (teacher_id,))
             notifications = cursor.fetchall()
 
+            # Convert datetime and timedelta fields to strings for JSON serialization
             for notification in notifications:
                 notification['date'] = self.datetime_to_str(notification.get('date'))
                 notification['start_time'] = self.timedelta_to_str(notification.get('start_time'))
@@ -99,12 +105,17 @@ class NotificationService:
             cursor.close()
             connection.close()
 
+    # Helper method to convert timedelta to string (HH:MM)
     def timedelta_to_str(self, td):
         if isinstance(td, timedelta):
-            return str(td.total_seconds())
+            total_seconds = td.total_seconds()
+            hours, remainder = divmod(total_seconds, 3600)
+            minutes, _ = divmod(remainder, 60)
+            return f'{int(hours):02}:{int(minutes):02}'
         return td
 
+    # Helper method to convert datetime to string (ISO format)
     def datetime_to_str(self, dt):
         if isinstance(dt, datetime):
-            return dt.isoformat()
+            return dt.strftime('%Y-%m-%d %H:%M:%S')  # You can adjust the format here
         return dt

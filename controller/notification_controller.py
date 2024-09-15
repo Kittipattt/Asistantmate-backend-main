@@ -35,6 +35,7 @@ def approve_notification():
     return jsonify(response), response.get('status', 200)
 
 @notification_bp.route('/api/reject_notification', methods=['POST'])
+@jwt_required()
 def reject_notification():
     data = request.get_json()
     response = notification_service.reject_notification(data['id'])

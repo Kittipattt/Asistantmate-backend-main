@@ -30,3 +30,33 @@ def get_tas_for_course():
     course_id = request.args.get('course_id')
     response = course_service.get_tas_for_course(course_id)
     return jsonify(response), response.get('status', 200)
+
+
+@course_bp.route('/api/course_sections/<course_id>', methods=['GET'])
+def get_course_sections(course_id):
+    """
+    Fetches sections for a given course ID.
+    """
+    response = course_service.get_course_sections(course_id)
+
+    # If response is a list, return it as a successful response.
+    if isinstance(response, list):
+        return jsonify(response), 200
+
+    # If response is a dictionary (error message), return it with the appropriate status.
+    return jsonify(response), response.get('status', 500)
+
+
+@course_bp.route('/api/course_tas/<course_id>/<section>', methods=['GET'])
+def get_course_tas(course_id, section):
+    """
+    Fetches TAs for a given course ID and section.
+    """
+    response = course_service.get_course_tas(course_id, section)
+
+    # If response is a list, return it as a successful response.
+    if isinstance(response, list):
+        return jsonify(response), 200
+
+    # If response is a dictionary (error message), return it with the appropriate status.
+    return jsonify(response), response.get('status', 500)
