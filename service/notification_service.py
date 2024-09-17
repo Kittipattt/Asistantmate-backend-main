@@ -53,6 +53,7 @@ class NotificationService:
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
         try:
+            # Fetch the teacher's ID using the teacher's name
             cursor.execute("SELECT Teacher_id FROM teacher_data WHERE Teacher_name = %s", (teacher_name,))
             teacher = cursor.fetchone()
 
@@ -60,10 +61,13 @@ class NotificationService:
                 return {'error': 'Teacher not found', 'status': 404}
 
             teacher_id = teacher['Teacher_id']
+
+            # Updated query to fetch the TA name by joining with the ta_data table
             query = """
-            SELECT DISTINCT a.id, a.ta_id, a.course_id, a.date, a.start_time, a.end_time, a.status, a.course_type
+            SELECT DISTINCT a.id, a.ta_id, a.course_id, c.course_name, a.date, a.start_time, a.end_time, a.status, a.course_type, t.ta_name
             FROM attendance a
             JOIN course_data01 c ON a.course_id = c.courseid
+            JOIN ta_data t ON a.ta_id = t.ta_id
             WHERE c.Teacher_id = %s
             """
             cursor.execute(query, (teacher_id,))

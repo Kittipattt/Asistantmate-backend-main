@@ -1,5 +1,8 @@
+import mysql.connector
+
 from utils.db import get_db_connection
 from datetime import datetime, timedelta
+
 
 class AttendanceService:
 
@@ -10,25 +13,27 @@ class AttendanceService:
             # Fetch TA ID
             cursor.execute('SELECT ta_id FROM ta_data WHERE username = %s', (username,))
             ta_data = cursor.fetchone()
-            if cursor._have_unread_result():
-                cursor.fetchall()
 
             if not ta_data:
                 return {'message': 'User not found.', 'status': 404}
 
             ta_id = ta_data['ta_id']
-            course_id = data['course_id']
+            course_id = data['course_id']  # Use 'course_id' as in the request
 
-            # Fetch Course Type
+            # Ensure all results are consumed before executing the next query
+            cursor.fetchall()
+
+            # Fetch Course Type from 'course_data01'
             cursor.execute('SELECT course_type FROM course_data01 WHERE courseid = %s', (course_id,))
             course_data = cursor.fetchone()
-            if cursor._have_unread_result():
-                cursor.fetchall()
 
             if not course_data:
                 return {'message': 'Course not found.', 'status': 404}
 
             course_type = course_data['course_type']
+
+            # Ensure all results are consumed before executing the next query
+            cursor.fetchall()
 
             # Insert attendance record
             cursor.execute('''
@@ -38,7 +43,13 @@ class AttendanceService:
             conn.commit()
 
             return {'message': 'Attendance checked in successfully.', 'status': 200}
+        except mysql.connector.Error as error:
+            # Log the error for debugging
+            print(f"Database error: {error}")
+            return {'message': 'Failed to check in attendance.', 'error': str(error), 'status': 500}
         except Exception as error:
+            # Log the error for debugging
+            print(f"General error: {error}")
             return {'message': 'Failed to check in attendance.', 'error': str(error), 'status': 500}
         finally:
             cursor.close()
@@ -52,8 +63,12 @@ class AttendanceService:
             attendance = cursor.fetchall()
 
             for record in attendance:
-                record['start_time'] = record['start_time'].strftime('%H:%M') if isinstance(record['start_time'], datetime) else record['start_time']
-                record['end_time'] = record['end_time'].strftime('%H:%M') if isinstance(record['end_time'], datetime) else record['end_time']
+                record['start_time'] = record['start_time'].strftime('%H:%M') if isinstance(record['start_time'],
+                                                                                            datetime) else record[
+                    'start_time']
+                record['end_time'] = record['end_time'].strftime('%H:%M') if isinstance(record['end_time'],
+                                                                                        datetime) else record[
+                    'end_time']
 
             return {'attendance': attendance, 'status': 200}
         except Exception as error:
