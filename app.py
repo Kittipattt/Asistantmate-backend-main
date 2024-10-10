@@ -9,6 +9,7 @@ from controller.attendance_controller import attendance_bp
 from controller.auth_controller import auth_bp
 from controller.evaluation_controller import evaluation_bp
 from controller.course_controller import course_bp
+from controller.account_controller import account_bp
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -26,6 +27,7 @@ app.register_blueprint(attendance_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(evaluation_bp)
 app.register_blueprint(course_bp)
+app.register_blueprint(account_bp)
 
 if __name__ == '__main__':
     app.run(debug=True)

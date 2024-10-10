@@ -7,7 +7,7 @@ from flask_jwt_extended import create_access_token, JWTManager, jwt_required, ge
 import secrets
 
 from mysql.connector import errorcode
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 app.secret_key = secrets.token_urlsafe(16)
@@ -23,8 +23,8 @@ def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        passwd="201245",
-        database="AMData",
+        passwd="Ice15088",
+        database="amdata",
         port=3306,
     )
 
@@ -854,6 +854,81 @@ def reject_notification():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/TAchange_username', methods=['POST'])
+@jwt_required()
+def change_username():
+    data = request.get_json()
+    current_user = get_jwt_identity()
+    username = current_user.get('username')
+
+    new_username = data.get('new_username')
+
+    if not new_username:
+        return jsonify({"message": "New username is required"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Check if the new username is already taken
+        cursor.execute('SELECT username FROM ta_data WHERE username = %s', (new_username,))
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            return jsonify({"message": "Username already taken"}), 400
+
+        # Update the username
+        cursor.execute('UPDATE ta_data SET username = %s WHERE username = %s', (new_username, username))
+        conn.commit()
+
+        # Update the session identity
+        session['user'] = new_username
+
+        return jsonify({'message': 'Username changed successfully', 'new_username': new_username}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/api/TAchange_password', methods=['POST'])
+@jwt_required()
+def change_password():
+    data = request.get_json()
+    current_user = get_jwt_identity()
+    username = current_user.get('username')
+
+    new_password = data.get('new_password')
+    confirm_password = data.get('confirm_password')
+
+    if not new_password or not confirm_password:
+        return jsonify({"message": "Both new password and confirmation are required"}), 400
+
+    if new_password != confirm_password:
+        return jsonify({"message": "New password and confirmation do not match"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Skip the hashing and store the password in plain text
+        cursor.execute('UPDATE ta_data SET password = %s WHERE username = %s', (new_password, username))
+        conn.commit()
+
+        return jsonify({'message': 'Password changed successfully'}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
+
