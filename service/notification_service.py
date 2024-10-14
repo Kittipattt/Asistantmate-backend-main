@@ -96,7 +96,7 @@ class NotificationService:
         finally:
             cursor.close()
             connection.close()
-
+#12321
     def reject_notification(self, notification_id):
         connection = get_db_connection()
         cursor = connection.cursor()
